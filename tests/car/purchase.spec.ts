@@ -2,7 +2,6 @@ import { test, expect } from '@/utils/fixtures';
 import { carQuoteData } from '@/utils/data';
 
 test.describe('Car Insurance Purchase Flow', () => {
-
     test('should be able to complete car insurance purchase', async ({
         page,
         carQuotePage,
@@ -14,6 +13,7 @@ test.describe('Car Insurance Purchase Flow', () => {
         // Step 1: Quote Page
         await carQuotePage.goto();
         await carQuotePage.submitQuote(carQuoteData);
+        await carQuotePage.mockQuoteResponse(); 
 
         // Step 2: Plan Page
         // await carPlanPage.selectPlanAndProceed('Comprehensive');

@@ -1,4 +1,8 @@
 import { Page, Locator } from '@playwright/test';
+import customParseFormat from 'dayjs/plugin/customParseFormat';
+import dayjs from 'dayjs';
+
+dayjs.extend(customParseFormat);
 
 /**
  * BasePage is a wrapper over Playwright's Page object.
@@ -31,40 +35,66 @@ export class BasePage {
      * Wait for a locator, clear it and fill text
      */
     async fillText(locator: Locator, text: string) {
-        console.log('locator', locator);
         await locator.fill(text);
     }
 
-
-    async setInputValue(
-        selector: string,
-        value: string
+    /**
+     * Fill date value using the date picker UI
+     */
+    async fillDateValue(
+        selector: Locator,
+        value: string | undefined
     ): Promise<void> {
-        await this.page.evaluate(
-            ({ selector, value }: { selector: string; value: string }) => {
-                const input = document.querySelector(selector) as HTMLInputElement | null;
-                if (!input) return;
+        const d = dayjs(value, ['DD/MM/YYYY', 'YYYY-MM-DD']);
+        const day = d.format('DD');
+        const month = d.format('MM');
+        const monthText = d.format('MMM');
+        const year:Number = Number(d.format('YYYY'));
 
-                // bỏ readonly nếu có
-                input.removeAttribute('readonly');
+        await selector.click();
+        let yearFromUI: Number = Number(await this.page.locator('.ant-picker-year-btn').last().textContent());
 
-                // lấy native setter
-                const nativeSetter = Object.getOwnPropertyDescriptor(
-                    HTMLInputElement.prototype,
-                    'value'
-                )?.set;
+        // Loop to click next or previous until we find the correct year
+        if (yearFromUI && yearFromUI < year) {
+            while (yearFromUI && yearFromUI < year) {
+                await this.page.click('.ant-picker-super-next-icon');
+                yearFromUI = Number(await this.page.locator('.ant-picker-year-btn').textContent()); 
+            }
+        }
+        else if (yearFromUI && yearFromUI > year) {
+            while (yearFromUI && yearFromUI > year) {
+                await this.page.click('.ant-picker-super-prev-icon');
+                yearFromUI = Number(await this.page.locator('.ant-picker-year-btn').textContent()); 
+            }
+        }
+        else {
+            console.log(yearFromUI, 'yearFromUI is already correct');
+        }
+        // select the month
+        await this.page.locator('.ant-picker-month-btn').last().click();
+        await this.page.locator('.ant-picker-cell-inner', { hasText: monthText }).click();
 
-                if (!nativeSetter) return;
+        // select the day
+        await this.page.locator(`td[title="${year}-${month}-${day}"] .ant-picker-cell-inner`).last().click();
+    }
 
-                // set value
-                nativeSetter.call(input, value);
+    async waitForTimeout(ms: number) {
+        await this.page.waitForTimeout(ms);
+    }
 
-                // trigger event
-                input.dispatchEvent(new Event('input', { bubbles: true }));
-                input.dispatchEvent(new Event('change', { bubbles: true }));
-            },
-            { selector, value }
-        );
+    async waitForPageStable(): Promise<void> {
+        await this.page.waitForLoadState('networkidle');
+    }
+
+    async selectDropdown(selector: Locator, value: string) {
+        await selector.click();
+        await this.page.getByPlaceholder('Search...').first().fill(value);
+        await this.page.getByText(value.toLocaleUpperCase()).first().click();
+    }
+
+    async selectOption(selector: Locator, value: string) {
+        await selector.click();
+        await this.page.locator(`div[title="${value}"]`).click();
     }
 
     /**
