@@ -1,42 +1,48 @@
 pipeline {
-    agent any
-
-    tools {
-      nodejs 'NodeJS_18' 
+    agent {
+        docker {
+            image 'mcr.microsoft.com/playwright:v1.58.2-jammy'
+            args '--ipc=host --init'
+        }
     }
 
-    environment {
-      CI = 'true'
+    parameters {
+        choice(name: 'ENV', choices: ['dev', 'staging', 'prod'], description: 'Choose env')
     }
 
     stages {
         stage('Checkout') {
             steps {
-                git branch: 'main', url: 'https://github.com/your-repo/playwright-project.git'
+                git branch: 'main', url: 'https://github.com/sontlu2001/test-insunrance.git'
             }
         }
 
         stage('Install Dependencies') {
             steps {
-                sh 'npm install'
+                sh 'npm ci'
             }
         }
 
-        stage('Install Playwright Browsers') {
+        stage('Set Environment') {
             steps {
-                sh 'npx playwright install --with-deps'
+                script {
+                    def baseUrls = [
+                        dev: "http://103.146.22.246:3001",
+                        staging: "https://staging.xxx.com",
+                        prod: "https://xxx.com"
+                    ]
+                    env.BASE_URL = baseUrls[params.ENV]
+                }
+                sh 'echo BASE_URL=$BASE_URL'
             }
         }
 
         stage('Run Tests') {
             steps {
-                sh 'npx playwright test'
-            }
-        }
-
-        stage('Publish Report') {
-            steps {
-                archiveArtifacts artifacts: 'playwright-report/**', allowEmptyArchive: true
+                sh '''
+                echo "Running with BASE_URL=$BASE_URL"
+                npx playwright test --reporter=line
+                '''
             }
         }
     }

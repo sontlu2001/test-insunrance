@@ -8,7 +8,7 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   reporter: 'html',
   use: {
-    baseURL: 'https://singpass.triceratopdev.com',
+    baseURL: process.env.BASE_URL,
     trace: 'on-first-retry',
   },
   projects: [
